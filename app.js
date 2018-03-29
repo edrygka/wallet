@@ -11,18 +11,26 @@ console.log(
     figlet.textSync('AXEL wallet', { horizontalLayout: 'full' })
   )
 )
+files.getCurrentDirectoryBase()
 
-// console.log(files.getCurrentDirectoryBase())
-// if (files.directoryExists('.git')) {
-//     console.log(chalk.red('Already a git repository!'))
-//     process.exit()
-// }
 
 const run = async () => {
-  const credentials = await inquirer.askCredentials();
-  console.log(credentials);
+  if (files.directoryExists('.wallet')) {
+    console.log(chalk.red('Wallet is finded!'))
+    const credentials = await inquirer.askCredentials()
+    //console.log(credentials)
+
+  } else {
+    console.log(chalk.red("Wallet is not exist, do you want create new one?"))
+    const result = await inquirer.askBool()
+    if(result){
+      files.createDirectory()
+    }
+  }
+
+  
 }
 
-run();
+run()
 
 
