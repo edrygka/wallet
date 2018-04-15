@@ -1,52 +1,112 @@
-const chalk = require('chalk')
-const clear = require('clear')
-const figlet = require('figlet')
-const questions  = require('./lib/questions')
-
+const fs = require('fs')
+//const readline  = require('./lib/readline')
+const account = require('./lib/account')
 const files = require('./lib/files')
+const config = require('./config')
+const readline = require('readline')
 
-clear()
-console.log(
-  chalk.yellow(
-    figlet.textSync('My first wallet', { horizontalLayout: 'full' })
-  )
-)
-files.getCurrentDirectoryBase()
+const rl = readline.createInterface(process.stdin, process.stdout)
 
+const password_path = config.walletDirectoryName + config.passwordFileName
+const wallet_path = config.walletDirectoryName + config.walletFileName
 
-function error_output(message,loglevel)
+const validatePass = () => {
+  return checkInput()
+    .then(pass => console.log(`Your password is valid: ${pass}`))
+    .catch(err => {
+      console.log(`Sorry: ${err}. Please, try again`)
+      validatePass()
+    })
+}
+const checkInput = () => {
+  return new Promise((resolve, reject) => {
+    fs.readFile(password_path, 'utf8', async (err, passw) => {
+      corePassword = JSON.parse(passw).password
+      rl.question('Enter your password: ', pass => {
+        console.log(corePassword, pass)
+        if (pass === corePassword) {
+          rl.close()
+          resolve(true)
+        } else {
+          reject(new Error('Invalid password'))
+        }
+      })
+    })
+  })
+}
+
+const askBool = () => {
+  return new Promise((resolve, reject) => {
+    rl.question('Yes or No: ', answer => {
+      if(answer.length){
+        rl.close()
+        resolve(answer)
+      }
+      reject(new Error('Invalid aanswer'))
+    })
+  })
+}
+
+const askPassword = () => {
+  return new Promise((resolve, reject) => {
+    rl.question('Enter your password: ', password => {
+      console.log(password)
+      // TODO: validation by regex
+      rl.close()   
+      resolve(password)
+      reject(new Error('Something going wrong'))
+    })
+  })
+}
+
+function debug_output(message,loglevel)
 {
-    console.log("{ status: \"error\", message: \""+message+"\"}");
+    if (loglevel <= config[cmd_filename].debugLevel)
+    {
+        console.log(message)
+    }
 }
 
 
 async function main() {
-  if (files.directoryExists('.wallet')) {
-    console.log(chalk.red('Wallet is finded!'))
-    const credentials = await questions.askCredentials()
+  if (files.directoryExists('.wallet') == true && files.fileExist(wallet_path) == true && files.fileExist(password_path) == true) {
+    
+    validatePass()
+
     //entering wallet 
   } else {
-    console.log(chalk.red("Wallet is not exist, do you want create new one?"))
-    const result = await questions.askBool()
-    console.log(result)
+    const newAccount = await askBool()
 
-    if(result.answer == "Yes"){
+    if(newAccount == "Yes"){
+      const passphrase = await askBool()
 
-      const passphrase = await questions.askGithubCredential()
+      console.log("ну хоть сюда ", passphrase)
+      files.createDirectory("/.wallet/").then(async directCreated => {
+        console.log(directCreated)
+        if(directCreated == true){
+          const userInfo = await account.createAccount()
+          
 
-      const opts = {
-        passPhrase: passphrase.password
-      }
-      files.createDirectory().then((res) => {
-        //TypeError: Cannot read property 'then' of undefined
-        console.log(data)
-        //need return path of directory where create json file
-        // create account 
-        //files.createJsonFile(path, "wallet.json", data, opts)
+          files.createJsonFile(wallet_path, JSON.stringify(userInfo.toJSON(), null, 2)).then(created => {
+            console.log(created)
+            if(created == true){
+              console.log("Successfuly created wallet!")
+            }
+          })
+
+
+          files.createJsonFile(password_path, JSON.stringify(passphrase)).then(pwFile => {
+            console.log(pwFile)
+            if(pwFile == true){
+              console.log("Successfuly created password file!")
+            }
+          })
+        }
       })
     }
   }
 } 
+
 
 
 main()
