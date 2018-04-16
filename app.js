@@ -1,114 +1,139 @@
-const fs = require('fs')
-//const readline  = require('./lib/readline')
-const account = require('./lib/account')
-const files = require('./lib/files')
-const config = require('./config')
 const readline = require('readline')
+const fs = require('fs')
+const path = require('path')
+
+const files = require('./lib/files')
+const account = require('./lib/account')
+const config = require('./config')
 
 const rl = readline.createInterface(process.stdin, process.stdout)
+const prefix = "wallet> "
 
 const password_path = config.walletDirectoryName + config.passwordFileName
 const wallet_path = config.walletDirectoryName + config.walletFileName
 
-const validatePass = () => {
-  return checkInput()
-    .then(pass => console.log(`Your password is valid: ${pass}`))
-    .catch(err => {
-      console.log(`Sorry: ${err}. Please, try again`)
-      validatePass()
-    })
-}
-const checkInput = () => {
-  return new Promise((resolve, reject) => {
-    fs.readFile(password_path, 'utf8', async (err, passw) => {
-      corePassword = JSON.parse(passw).password
-      rl.question('Enter your password: ', pass => {
-        console.log(corePassword, pass)
-        if (pass === corePassword) {
-          rl.close()
-          resolve(true)
-        } else {
-          reject(new Error('Invalid password'))
-        }
-      })
-    })
-  })
+
+
+let user_status 
+// "undefined" if account is not created
+// "unlogined" if account exist but user not loged
+// "logined" if user loged and can send coins or get your balance
+
+
+const validatePass = (enterPass) => {
+    return checkInput(enterPass)
+        .then(result => result)
+        .catch(err => {
+            console.log(`Sorry: ${err}. Please, try again`)
+            return err
+            //validatePass(enterPass)
+        })
 }
 
-const askBool = () => {
-  return new Promise((resolve, reject) => {
-    rl.question('Yes or No: ', answer => {
-      if(answer.length){
-        rl.close()
-        resolve(answer)
-      }
-      reject(new Error('Invalid aanswer'))
+const checkInput = (enterPass) => {
+    return new Promise((resolve, reject) => {
+        fs.readFile(password_path, 'utf8', async (err, passw) => {
+            corePassword = JSON.parse(passw).password
+            if (enterPass === corePassword) {
+                resolve(true)
+            } else {
+                reject(new Error('Invalid password'))
+            }
+        })
     })
-  })
 }
 
-const askPassword = () => {
-  return new Promise((resolve, reject) => {
-    rl.question('Enter your password: ', password => {
-      console.log(password)
-      // TODO: validation by regex
-      rl.close()   
-      resolve(password)
-      reject(new Error('Something going wrong'))
-    })
-  })
-}
 
-function debug_output(message,loglevel)
-{
-    if (loglevel <= config[cmd_filename].debugLevel)
-    {
-        console.log(message)
+function start(){
+    const walletDir = files.directoryExists('.wallet')
+    const walletFile = fs.existsSync(wallet_path)
+    const passwFile = fs.existsSync(password_path)
+    if(walletDir == true && walletFile == true && passwFile == true){
+        user_status = "unlogined"
+        console.log(prefix + "Enter your password")
+    } else {
+        user_status = "undefined"
+        console.log(prefix + "We are runing to create wallet. Input new password")
     }
-}
+
+    rl.on('line', async line => {
+        let command = line.replace(/^\s+|\s+$/gm, "")// more regex
+        //console.log(command)
+        switch(user_status) {
+            case "undefined":
+            console.log("undefined case")
+            // creating new key pair
+            const userInfo = await account.createAccount()
+            //command it is password
+            const result = await prepairing(command, userInfo)
+            if(result === true){
+                user_status = "unlogined"
+                console.log(prefix + "Successfuly created new account")
+            } // throw reject, get more details
+            console.log(prefix + "Enter your password")
+            break
+
+            
+            case "unlogined":
+            validatePass(command).then(res => {
+                if(res === true){
+                    user_status = "logined"
+                    console.log(prefix + "Successfuly logined")
+                }
+            }).catch(err => {
+                console.log(err + " stranno")
+            })
+            break
 
 
-async function main() {
-  if (files.directoryExists('.wallet') == true && files.fileExist(wallet_path) == true && files.fileExist(password_path) == true) {
+            case "logined":
+            // TODO:  all functionality of user
+            switch(command) {
+                case 'help':
+                console.log(prefix + " Help: \n You can send transaction this command - 'transferCoins(address, amount)'\n Check your balance - 'getBalance'")
+                break
+
+                case 'transferCoins':
+                console.log(command)
+
+                break
+
+                case 'getBalance':
+                console.log(prefix + "Balance of your account: ")
+
+                default:
+                console.log("Say what? I might have heard `' + line.trim() + '`\n Enter 'help' to get all info about commands")
+                break
+
+            break
+        }
+        
+        }
+        rl.setPrompt(prefix, prefix.length)
+        rl.prompt()
+    }).on('close', () => {
+        console.log('Wallet procces is ended. Good to see you. Have a great day!')
+        process.exit(0)
+    })
+    //console.log(prefix + "Let's get started")
+    rl.setPrompt(prefix, prefix.length)
+    rl.prompt()
     
-    validatePass()
-
-    //entering wallet 
-  } else {
-    const newAccount = await askBool()
-
-    if(newAccount == "Yes"){
-      const passphrase = await askBool()
-
-      console.log("ну хоть сюда ", passphrase)
-      files.createDirectory("/.wallet/").then(async directCreated => {
-        console.log(directCreated)
-        if(directCreated == true){
-          const userInfo = await account.createAccount()
-          
-
-          files.createJsonFile(wallet_path, JSON.stringify(userInfo.toJSON(), null, 2)).then(created => {
-            console.log(created)
-            if(created == true){
-              console.log("Successfuly created wallet!")
-            }
-          })
+}
 
 
-          files.createJsonFile(password_path, JSON.stringify(passphrase)).then(pwFile => {
-            console.log(pwFile)
-            if(pwFile == true){
-              console.log("Successfuly created password file!")
-            }
-          })
-        }
-      })
-    }
-  }
-} 
+function prepairing(password, keys){
+    return new Promise((resolve, reject) => {
+        files.createDirectory('./.wallet/').then(createdDir => {
+            files.createJsonFile(wallet_path, keys).then(createdWallet => {
+                files.createJsonFile(password_path, {password: password}).then(createdPassword => {
+                    resolve(true)
+                }).catch(err => reject(err))
+            }).catch(err => reject(err))
+        })
+    })  
+}
 
 
 
-main()
-
-
+start()
