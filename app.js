@@ -8,6 +8,7 @@ const config = require('./config')
 
 const rl = readline.createInterface(process.stdin, process.stdout)
 const prefix = "wallet> "
+const passpref = "password> "
 
 const password_path = config.walletDirectoryName + config.passwordFileName
 const wallet_path = config.walletDirectoryName + config.walletFileName
@@ -68,20 +69,25 @@ function start(){
             const result = await prepairing(command, userInfo)
             if(result === true){
                 user_status = "unlogined"
-                console.log(prefix + "Successfuly created new account")
+                console.log(/*prefix + */"Successfuly created new account")
             } // throw reject, get more details
-            console.log(prefix + "Enter your password")
+            console.log(/*prefix + */"Enter your password")
             break
 
             
             case "unlogined":
             validatePass(command).then(res => {
                 if(res === true){
+                    rl.setPrompt(prefix, prefix.length)//костыли пиздец...
+                    rl.prompt()
                     user_status = "logined"
-                    console.log(prefix + "Successfuly logined")
+                    console.log("Successfuly logined")
+                } else {
+                    rl.setPrompt(passpref, passpref.length)//костыли пиздец...
+                    rl.prompt()
                 }
             }).catch(err => {
-                console.log(err + " stranno")
+                console.log(err + " stranno")// тут вооще все странно, catch не вызывается в принципе
             })
             break
 
@@ -90,7 +96,7 @@ function start(){
             // TODO:  all functionality of user
             switch(command) {
                 case 'help':
-                console.log(prefix + " Help: \n You can send transaction this command - 'transferCoins(address, amount)'\n Check your balance - 'getBalance'")
+                console.log(" Help: \n You can send transaction this command - 'transferCoins(address, amount)'\n Check your balance - 'getBalance'")
                 break
 
                 case 'transferCoins':
@@ -99,15 +105,18 @@ function start(){
                 break
 
                 case 'getBalance':
-                console.log(prefix + "Balance of your account: ")
+                rl.setPrompt(prefix, prefix.length)
+                rl.prompt()
+                console.log("Balance of your account: ")
+                break 
 
                 default:
+                rl.setPrompt(prefix, prefix.length)
+                rl.prompt()
                 console.log("Say what? I might have heard `' + line.trim() + '`\n Enter 'help' to get all info about commands")
                 break
-
+            }
             break
-        }
-        
         }
         rl.setPrompt(prefix, prefix.length)
         rl.prompt()
@@ -115,8 +124,14 @@ function start(){
         console.log('Wallet procces is ended. Good to see you. Have a great day!')
         process.exit(0)
     })
-    //console.log(prefix + "Let's get started")
-    rl.setPrompt(prefix, prefix.length)
+    //console.log("ura")
+    //console.log(prefix)
+    if(user_status === "unlogined"){
+        rl.setPrompt(passpref, passpref.length)
+    } else {
+        rl.setPrompt(prefix, prefix.length)
+    }
+    
     rl.prompt()
     
 }
