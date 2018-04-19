@@ -7,4 +7,8 @@ module.exports = {
     walletDirectoryName: "./.wallet/",
 
     passwordFileName: "password.json",
+
+    passwordPath: "./.wallet/password.json",
+
+    walletPath: "./.wallet/wallet.json"
 }
