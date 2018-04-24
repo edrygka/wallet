@@ -6,21 +6,40 @@ const crypto = require("libp2p-crypto")
 
 const files = require('./lib/files')
 const account = require('./lib/account')
-const config = require('./config')
+//const config = require('./config')
 
 const rl = readline.createInterface(process.stdin, process.stdout)
 const prefix = "wallet> "
 const passpref = "password> "
 
-const passwordPath = config.passwordPath
-const walletPath = config.walletPath
+let passwordPath // ++++++++++++++++++++++++++
+let walletPath
 
 const ws = new WebSocket('ws://127.0.0.1:9091')
+// Need to broadcast tx to node
 
 let user_status 
 // "undefined" if account is not created
 // "unlogined" if account exist but user not loged
 // "logined" if user loged and can send coins or get your balance
+
+
+// first start
+const first = (callback) => {
+    fs.readFile("./config.json", 'utf8', async (err, content) => {
+        let newContent = JSON.parse(content)
+        const kek = await files.getCurrentDirectoryBase()
+        newContent.baseDirectory = kek
+        passwordPath = newContent.baseDirectory + newContent.walletDirectory + newContent.passwordFileName
+        walletPath = newContent.baseDirectory + newContent.walletDirectory + newContent.walletFileName
+
+        fs.writeFileSync("./config.json", JSON.stringify(newContent, null, 4), err => {
+            if(err) throw err
+            return callback(false)
+        })
+        return callback(true)
+    })
+}
 
 
 const validatePass = (enterPass) => {
@@ -35,7 +54,7 @@ const validatePass = (enterPass) => {
 
 const checkInput = (enterPass) => {
     return new Promise((resolve, reject) => {
-        fs.readFile(passwordPath, 'utf8', (err, passw) => {
+        fs.readFile(passwordPath, 'utf8', (err, passw) => { // ++++++++++++++++++++++++++
             corePassword = JSON.parse(passw).password
             if (enterPass === corePassword) {
                 resolve(true)
@@ -49,9 +68,11 @@ const checkInput = (enterPass) => {
 
 function start(){
     ws.on('open', () => {
-        const walletDir = files.directoryExists('.wallet')
+        first((successConfig => {
+            if(successConfig === true){
+                const walletDir = files.directoryExists('.wallet')
         const walletFile = fs.existsSync(walletPath)
-        const passwFile = fs.existsSync(passwordPath)
+        const passwFile = fs.existsSync(passwordPath)// ++++++++++++++++++++++++++
         if(walletDir == true && walletFile == true && passwFile == true){
             user_status = "unlogined"
             console.log(prefix + "Enter your password")
@@ -62,19 +83,27 @@ function start(){
 
         rl.on('line', async line => {
             let command = line.replace(/^\s+|\s+$/gm, "")// more regex
+            if(command === "quit" || command === "exit" || command === "quit()" || command === "exit()"){
+                process.exit(0)
+            }
 
             switch(user_status) {
                 case "undefined":
-                console.log("undefined case")
                 // creating new key pair
                 const userInfo = await account.createAccount()
                 //command it is password
-                const result = await prepairing(command, userInfo)
-                if(result === true){
-                    user_status = "unlogined"
-                    console.log(/*prefix + */"Successfuly created new account")
-                } // throw reject, get more details
-                console.log(/*prefix + */"Enter your password")
+                if(command !== ""){
+                    const result = await prepairing(command, userInfo)
+                    if(result === true){
+                        user_status = "unlogined"
+                        console.log("Successfuly created new account")
+                    } // throw reject, get more details
+                    console.log("Enter your password")
+                    
+                } else {
+                    console.log("Empty password, please try again...")
+                }
+                
                 break
 
             
@@ -96,14 +125,14 @@ function start(){
 
 
                 case "logined":
-                // TODO:  all functionality of user
+
                 const params = preproccessing(command)// get all params from string
 
                 command = command.split('(')[0]// get only command, without params
 
                 switch(command) {
                     case 'help':
-                    console.log(" Help: \n You can send transaction this command - 'transferCoins(address, amount)'\n Check your balance - 'getBalance'")
+                    console.log(" Help: \n You can send transaction this command - 'transferCoins(address, amount)'\n Check your balance - 'getBalance'\n Exit from wallet -'quit' or 'exit'")
                     break
 
                     case 'transferCoins':
@@ -150,21 +179,29 @@ function start(){
                 }
                 break
             }
-            rl.setPrompt(prefix, prefix.length)
+            if(user_status === "unlogined" || user_status === "undefined"){
+                rl.setPrompt(passpref, passpref.length)
+            } else {
+                rl.setPrompt(prefix, prefix.length)
+            }
             rl.prompt()
         }).on('close', () => {
             console.log('Wallet procces is ended. Good to see you. Have a great day!')
             process.exit(0)
         })
-        //console.log("ura")
-        //console.log(prefix)
-        if(user_status === "unlogined"){
+
+        if(user_status === "unlogined" || user_status === "undefined"){
             rl.setPrompt(passpref, passpref.length)
         } else {
             rl.setPrompt(prefix, prefix.length)
         }
     
         rl.prompt()
+            } else {
+                console.log("Хуево, я даже хз шо в таких случаях делать")
+            }
+        }))
+        
     })
 }
 
@@ -174,19 +211,18 @@ const prepairing = (password, keys) => {
         files.createDirectory('./.wallet/').then(createdDir => {
             files.createJsonFile(walletPath, keys).then(createdWallet => {
                 files.createJsonFile(passwordPath, {password: password}).then(createdPassword => {
-                    resolve(true)
+                    resolve(true)// ++++++++++++++++++++++++++
                 }).catch(err => reject(err))
             }).catch(err => reject(err))
         })
-    })  
+    }) 
 }
 
 const preproccessing = inputString => {
     if(inputString.split('(')[0] === inputString) return null
     inputString = inputString.replace(/\s/g,"")
-    let params = []
-    let str = inputString.split('(')[1]
-    params = str.split(',') 
+    const str = inputString.split('(')[1]
+    let params = [] = str.split(',') 
     return params
 }
 
