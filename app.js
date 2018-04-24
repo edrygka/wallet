@@ -176,7 +176,7 @@ function start(){
                             case 'getBalance':
                             rl.setPrompt(prefix, prefix.length)
                             rl.prompt()
-                            console.log("Balance of your account: ")
+                            console.log("Coming soon")
                             break 
 
                             default:
