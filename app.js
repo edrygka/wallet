@@ -28,8 +28,16 @@ let user_status
 const first = (callback) => {
     fs.readFile("./config.json", 'utf8', async (err, content) => {
         let newContent = JSON.parse(content)
-        const kek = await files.getCurrentDirectoryBase()
-        newContent.baseDirectory = kek
+        for(key in newContent){
+            if(key === "baseDirectory"){
+                const baseDir = await files.getCurrentDirectoryBase()
+                newContent[key] = baseDir
+            }
+        }
+
+        const bDir = await files.getCurrentDirectoryBase()
+        newContent.baseDirectory = bDir
+
         passwordPath = newContent.baseDirectory + newContent.walletDirectory + newContent.passwordFileName
         walletPath = newContent.baseDirectory + newContent.walletDirectory + newContent.walletFileName
 
@@ -54,7 +62,7 @@ const validatePass = (enterPass) => {
 
 const checkInput = (enterPass) => {
     return new Promise((resolve, reject) => {
-        fs.readFile(passwordPath, 'utf8', (err, passw) => { // ++++++++++++++++++++++++++
+        fs.readFile(passwordPath, 'utf8', (err, passw) => { 
             corePassword = JSON.parse(passw).password
             if (enterPass === corePassword) {
                 resolve(true)
@@ -71,137 +79,136 @@ function start(){
         first((successConfig => {
             if(successConfig === true){
                 const walletDir = files.directoryExists('.wallet')
-        const walletFile = fs.existsSync(walletPath)
-        const passwFile = fs.existsSync(passwordPath)// ++++++++++++++++++++++++++
-        if(walletDir == true && walletFile == true && passwFile == true){
-            user_status = "unlogined"
-            console.log(prefix + "Enter your password")
-        } else {
-            user_status = "undefined"
-            console.log(prefix + "We are runing to create wallet. Input new password")
-        }
-
-        rl.on('line', async line => {
-            let command = line.replace(/^\s+|\s+$/gm, "")// more regex
-            if(command === "quit" || command === "exit" || command === "quit()" || command === "exit()"){
-                process.exit(0)
-            }
-
-            switch(user_status) {
-                case "undefined":
-                // creating new key pair
-                const userInfo = await account.createAccount()
-                //command it is password
-                if(command !== ""){
-                    const result = await prepairing(command, userInfo)
-                    if(result === true){
-                        user_status = "unlogined"
-                        console.log("Successfuly created new account")
-                    } // throw reject, get more details
-                    console.log("Enter your password")
-                    
+                const walletFile = fs.existsSync(walletPath)
+                const passwFile = fs.existsSync(passwordPath)
+                if(walletDir == true && walletFile == true && passwFile == true){
+                    user_status = "unlogined"
+                    console.log(prefix + "Enter your password")
                 } else {
-                    console.log("Empty password, please try again...")
+                    user_status = "undefined"
+                    console.log(prefix + "We are runing to create wallet. Input new password")
                 }
+
+                rl.on('line', async line => {
+                    let command = line.replace(/^\s+|\s+$/gm, "")// more regex
+                    if(command === "quit" || command === "exit" || command === "quit()" || command === "exit()"){
+                        process.exit(0)
+                    }
+
+                    switch(user_status) {
+                        case "undefined":
+                        // creating new key pair
+                        const userInfo = await account.createAccount()
+                        //command it is password
+                        if(command !== ""){
+                            const result = await prepairing(command, userInfo)
+                            if(result === true){
+                                user_status = "unlogined"
+                                console.log("Successfuly created new account")
+                            } // throw reject, get more details
+                            console.log("Enter your password")
+                    
+                        } else {
+                            console.log("Empty password, please try again...")
+                        }
                 
-                break
+                        break
 
             
-                case "unlogined":
-                validatePass(command).then(res => {
-                    if(res === true){
-                        rl.setPrompt(prefix, prefix.length)//костыли пиздец...
-                        rl.prompt()
-                        user_status = "logined"
-                        console.log("Successfuly logined")
-                    } else {
-                        rl.setPrompt(passpref, passpref.length)//костыли пиздец...
-                        rl.prompt()
-                    }
-                }).catch(err => {
-                    console.log(err + " stranno")// тут вооще все странно, catch не вызывается в принципе
-                })
-                break
+                        case "unlogined":
+                        validatePass(command).then(res => {
+                            if(res === true){
+                                rl.setPrompt(prefix, prefix.length)//костыли пиздец...
+                                rl.prompt()
+                                user_status = "logined"
+                                console.log("Successfuly logined")
+                            } else {
+                                rl.setPrompt(passpref, passpref.length)//костыли пиздец...
+                                rl.prompt()
+                            }
+                        }).catch(err => {
+                            console.log(err + " stranno")// тут вооще все странно, catch не вызывается в принципе
+                        })
+                        break
 
 
-                case "logined":
+                        case "logined":
 
-                const params = preproccessing(command)// get all params from string
+                        const params = preproccessing(command)// get all params from string
 
-                command = command.split('(')[0]// get only command, without params
+                        command = command.split('(')[0]// get only command, without params
 
-                switch(command) {
-                    case 'help':
-                    console.log(" Help: \n You can send transaction this command - 'transferCoins(address, amount)'\n Check your balance - 'getBalance'\n Exit from wallet -'quit' or 'exit'")
-                    break
+                        switch(command) {
+                            case 'help':
+                            console.log(" Help: \n You can send transaction this command - 'transferCoins(address, amount)'\n Check your balance - 'getBalance'\n Exit from wallet -'quit' or 'exit'")
+                            break
 
-                    case 'transferCoins':
+                            case 'transferCoins':
                     
-                    const sender = await account.getAddress()
+                            const sender = await account.getAddress()
 
-                    txOk = {
-                        senderAddr: sender,
-                        recipientAddr: params[0],
-                        amount: params[1]
+                            txOk = {
+                                senderAddr: sender,
+                                recipientAddr: params[0],
+                                amount: params[1]
+                            }
+
+                            txOk.id = getUniqueId()
+
+                            ws.send(JSON.stringify({
+                                action: 'transfer',
+                                data: txOk
+                            }))
+                            console.log(txOk)
+
+                            ws.on('message', msgStred => {
+                                var msg
+                                console.log('got message:', msgStred)
+                                msg = JSON.parse(msgStred)
+                                return ws.send(JSON.stringify({
+                                    code: 0,
+                                    data: msg.data.id
+                                }))
+                            })
+
+                            break
+
+                            case 'getBalance':
+                            rl.setPrompt(prefix, prefix.length)
+                            rl.prompt()
+                            console.log("Balance of your account: ")
+                            break 
+
+                            default:
+                            rl.setPrompt(prefix, prefix.length)
+                            rl.prompt()
+                            console.log("Say what? I might have heard '" + line.trim() + "'\n Enter 'help' to get all info about commands")
+                            break
+                        }
+                        break
                     }
-
-                    txOk.id = getUniqueId()
-
-                    ws.send(JSON.stringify({
-                        action: 'transfer',
-                        data: txOk
-                    }))
-                    console.log(txOk)
-
-                    ws.on('message', msgStred => {
-                        var msg
-                        console.log('got message:', msgStred)
-                        msg = JSON.parse(msgStred)
-                        return ws.send(JSON.stringify({
-                          code: 0,
-                          data: msg.data.id
-                        }))
-                    })
-
-                    break
-
-                    case 'getBalance':
-                    rl.setPrompt(prefix, prefix.length)
+                    if(user_status === "unlogined" || user_status === "undefined"){
+                        rl.setPrompt(passpref, passpref.length)
+                    } else {
+                        rl.setPrompt(prefix, prefix.length)
+                    }
                     rl.prompt()
-                    console.log("Balance of your account: ")
-                    break 
+                }).on('close', () => {
+                    console.log('Wallet procces is ended. Good to see you. Have a great day!')
+                    process.exit(0)
+                })
 
-                    default:
+                if(user_status === "unlogined" || user_status === "undefined"){
+                    rl.setPrompt(passpref, passpref.length)
+                } else {
                     rl.setPrompt(prefix, prefix.length)
-                    rl.prompt()
-                    console.log("Say what? I might have heard '" + line.trim() + "'\n Enter 'help' to get all info about commands")
-                    break
                 }
-                break
-            }
-            if(user_status === "unlogined" || user_status === "undefined"){
-                rl.setPrompt(passpref, passpref.length)
-            } else {
-                rl.setPrompt(prefix, prefix.length)
-            }
-            rl.prompt()
-        }).on('close', () => {
-            console.log('Wallet procces is ended. Good to see you. Have a great day!')
-            process.exit(0)
-        })
-
-        if(user_status === "unlogined" || user_status === "undefined"){
-            rl.setPrompt(passpref, passpref.length)
-        } else {
-            rl.setPrompt(prefix, prefix.length)
-        }
     
-        rl.prompt()
+                rl.prompt()
             } else {
                 console.log("Хуево, я даже хз шо в таких случаях делать")
             }
         }))
-        
     })
 }
 
