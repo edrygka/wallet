@@ -90,7 +90,7 @@ function start(){
                 //TODO: check that command has all params, scopes and others
                 let command = line.replace(/^\s+|\s+$/gm, "")// more regex
                 if(command === "quit" || command === "exit" || command === "quit()" || command === "exit()"){
-                    process.exit(0)
+                    rl.close()
                 }
 
                 switch(user_status) {
@@ -141,10 +141,10 @@ function start(){
 
                         case 'transferCoins':
                     
-                        const sender = await account.getAddress()
+                        const sender = await account.getUserInfo()
 
                         txOk = {
-                            senderAddr: sender,
+                            senderAddr: sender.id,
                             recipientAddr: params[0],
                             amount: params[1]
                         }
@@ -155,6 +155,7 @@ function start(){
                             action: 'transfer',
                             data: txOk
                         }))
+
 
                         console.log(txOk)
 
@@ -173,7 +174,10 @@ function start(){
                         case 'getBalance':
                         rl.setPrompt(prefix, prefix.length)
                         rl.prompt()
-                        console.log("Coming soon")
+
+                        const balance = await account.getUserInfo()
+
+                        console.log("Your balance = " + balance.amount)
                         break 
 
                         default:
@@ -225,8 +229,9 @@ const prepairing = (password, keys) => {
 
 const preproccessing = inputString => {
     if(inputString.split('(')[0] === inputString) return null
-    inputString = inputString.replace(/\s/g,"")// delete all 
-    const str = inputString.split('(')[1]
+    inputString = inputString.replace(/\s/g,"")// delete all пробелс
+    let str = inputString.split('(')[1]
+    str = str.substring(0, str.length - 1)
     let params = [] = str.split(',') 
     return params
 }
