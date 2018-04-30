@@ -32,7 +32,6 @@ const first = (callback) => {
         const newContent = JSON.parse(content)
 
         walletPath = `${newContent.baseDirectory}/${newContent.walletFileName}`
-        //walletPath = newContent.baseDirectory + newContent.walletDirectory + newContent.walletFileName
 
         return callback(null)
     })
