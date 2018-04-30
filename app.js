@@ -145,7 +145,7 @@ function start(){
                         txOk = {
                             senderAddr: sender.id,
                             recipientAddr: params[0],
-                            amount: params[1]
+                            amount: Number(params[1])
                         }
 
                         txOk.id = getUniqueId()
