@@ -83,7 +83,7 @@ function start(){
                 console.log(prefix + "Enter your password")
             } else {
                 user_status = "undefined"
-                console.log(prefix + "We are runing to create wallet. Input new password")
+                console.log(prefix + "We are going to create wallet. Please, input new password")
             }
 
             rl.on('line', async line => {
@@ -102,12 +102,12 @@ function start(){
                         const result = await prepairing(command, userInfo)
                         if(result === true){
                             user_status = "unlogined"
-                            console.log("Successfuly created new account")
+                            console.log("Successfully created new account")
                         } // throw reject, get more details
-                        console.log("Enter your password")
+                        console.log("Please, enter your password")
                     
                     } else {
-                        console.log("Empty password, please try again...")
+                        console.log("Empty password, please, try again...")
                     }
                     break
                         
@@ -117,7 +117,7 @@ function start(){
                             rl.setPrompt(prefix, prefix.length)//костыли пиздец...
                             rl.prompt()
                             user_status = "logined"
-                            console.log("Successfuly logined")
+                            console.log("Successfully logined")
                         } else {
                             rl.setPrompt(passpref, passpref.length)//костыли пиздец...
                             rl.prompt()
@@ -155,6 +155,7 @@ function start(){
                             action: 'transfer',
                             data: txOk
                         }))
+
                         console.log(txOk)
 
                         ws.on('message', msgStred => {
@@ -206,7 +207,7 @@ function start(){
     })
 
     ws.on('close', function close() {
-        console.log('disconnected')
+        console.log('Cannot connect - network is down, please, get up client and try again')
         process.exit(0)
     })
 }
