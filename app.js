@@ -31,7 +31,8 @@ const first = (callback) => {
 
         const newContent = JSON.parse(content)
 
-        walletPath = newContent.baseDirectory + newContent.walletDirectory + newContent.walletFileName
+        walletPath = `${newContent.baseDirectory}/${newContent.walletFileName}`
+        //walletPath = newContent.baseDirectory + newContent.walletDirectory + newContent.walletFileName
 
         return callback(null)
     })
@@ -76,9 +77,8 @@ function start(){
     ws.on('open', () => {
         first((err => {
             if(err) throw err
-            const walletDir = files.directoryExists('.wallet')
             const walletFile = fs.existsSync(walletPath)
-            if(walletDir == true && walletFile == true){
+            if(walletFile == true){
                 user_status = "unlogined"
                 console.log(prefix + "Enter your password")
             } else {
