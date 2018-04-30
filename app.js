@@ -218,11 +218,9 @@ function start(){
 
 const prepairing = (password, keys) => {
     return new Promise((resolve, reject) => {
-        files.createDirectory('./.wallet/').then(createdDir => {
-            files.createJsonFile(walletPath, keys, password).then(createdWallet => {
-                resolve(true)
-            }).catch(err => reject(err))
-        })
+        files.createJsonFile(walletPath, keys, password).then(createdWallet => {
+            resolve(true)
+        }).catch(err => reject(err))
     }) 
 }
 
