@@ -3,6 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const WebSocket = require('ws')
 const crypto = require("libp2p-crypto")
+const CryptoJS = require("crypto-js")
 
 const files = require('./lib/files')
 const account = require('./lib/account')
@@ -12,7 +13,6 @@ const rl = readline.createInterface(process.stdin, process.stdout)
 const prefix = "wallet> "
 const passpref = "password> "
 
-let passwordPath 
 let walletPath
 
 const ws = new WebSocket('ws://127.0.0.1:9091')
@@ -31,7 +31,6 @@ const first = (callback) => {
 
         const newContent = JSON.parse(content)
 
-        passwordPath = newContent.baseDirectory + newContent.walletDirectory + newContent.passwordFileName
         walletPath = newContent.baseDirectory + newContent.walletDirectory + newContent.walletFileName
 
         return callback(null)
@@ -51,8 +50,9 @@ const validatePass = (enterPass) => {
 
 const checkInput = (enterPass) => {
     return new Promise((resolve, reject) => {
-        fs.readFile(passwordPath, 'utf8', (err, passw) => { 
-            corePassword = JSON.parse(passw).password
+        enterPass = CryptoJS.SHA256(enterPass).toString()
+        fs.readFile(walletPath, 'utf8', (err, content) => { 
+            corePassword = JSON.parse(content).password
             if (enterPass === corePassword) {
                 resolve(true)
             } else {
@@ -78,8 +78,7 @@ function start(){
             if(err) throw err
             const walletDir = files.directoryExists('.wallet')
             const walletFile = fs.existsSync(walletPath)
-            const passwFile = fs.existsSync(passwordPath)
-            if(walletDir == true && walletFile == true && passwFile == true){
+            if(walletDir == true && walletFile == true){
                 user_status = "unlogined"
                 console.log(prefix + "Enter your password")
             } else {
@@ -100,7 +99,7 @@ function start(){
                     const userInfo = await account.createAccount()
                     //command it is password
                     if(command !== ""){
-                    const result = await prepairing(command, userInfo)
+                        const result = await prepairing(command, userInfo)
                         if(result === true){
                             user_status = "unlogined"
                             console.log("Successfuly created new account")
@@ -216,10 +215,8 @@ function start(){
 const prepairing = (password, keys) => {
     return new Promise((resolve, reject) => {
         files.createDirectory('./.wallet/').then(createdDir => {
-            files.createJsonFile(walletPath, keys).then(createdWallet => {
-                files.createJsonFile(passwordPath, {password: password}).then(createdPassword => {
-                    resolve(true)
-                }).catch(err => reject(err))
+            files.createJsonFile(walletPath, keys, password).then(createdWallet => {
+                resolve(true)
             }).catch(err => reject(err))
         })
     }) 
@@ -227,7 +224,7 @@ const prepairing = (password, keys) => {
 
 const preproccessing = inputString => {
     if(inputString.split('(')[0] === inputString) return null
-    inputString = inputString.replace(/\s/g,"")
+    inputString = inputString.replace(/\s/g,"")// delete all 
     const str = inputString.split('(')[1]
     let params = [] = str.split(',') 
     return params

@@ -14,6 +14,7 @@
     "clear": "0.1.0",
     "clui": "0.3.6",
     "configstore": "3.1.2",
+    "crypto-js": "^3.1.9-1",
     "datastore-fs": "^0.4.2",
     "figlet": "1.2.0",
     "file-encryptor": "0.1.1",
