@@ -7,7 +7,6 @@ const CryptoJS = require("crypto-js")
 
 const files = require('./lib/files')
 const account = require('./lib/account')
-//const config = require('./config')
 
 const rl = readline.createInterface(process.stdin, process.stdout)
 const prefix = "wallet> "
@@ -23,19 +22,6 @@ let user_status
 // "unlogined" if account exist but user not loged
 // "logined" if user loged and can send coins or get your balance
 
-
-// first start
-const first = (callback) => {
-    fs.readFile("./config.json", 'utf8', async (err, content) => {
-        if(err) return callback(err)
-
-        const newContent = JSON.parse(content)
-
-        walletPath = `${newContent.baseDirectory}/${newContent.walletFileName}`
-
-        return callback(null)
-    })
-}
 
 
 const validatePass = (enterPass) => {
@@ -74,8 +60,8 @@ function start(){
     }
 
     ws.on('open', () => {
-        first((err => {
-            if(err) throw err
+        files.getWalletPath().then(pathOfWallet => {
+            walletPath = pathOfWallet
             const walletFile = fs.existsSync(walletPath)
             if(walletFile == true){
                 user_status = "unlogined"
@@ -218,7 +204,7 @@ function start(){
     
             rl.prompt()
         
-        }))
+        }).catch(err => console.log(new Error("пошло по пизде")))
     })
 
     ws.on('close', function close() {
