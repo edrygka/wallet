@@ -142,10 +142,22 @@ function start(){
                     
                         const sender = await account.getUserInfo()
 
+                        const _saddress = String(sender.id)
+                        const _raddress = String(params[0])
+                        const _amount = Number(params[1])
+                        const _famount = Number(sender.amount)
+
+                        if(_famount < _amount){
+                            rl.setPrompt(prefix, prefix.length)
+                            rl.prompt()
+                            console.log("Not enough money, please try again")
+                            break
+                        }
+
                         txOk = {
-                            senderAddr: sender.id,
-                            recipientAddr: params[0],
-                            amount: Number(params[1])
+                            senderAddr: _saddress,
+                            recipientAddr: _raddress,
+                            amount: _amount
                         }
 
                         txOk.id = getUniqueId()
