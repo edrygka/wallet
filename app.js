@@ -24,16 +24,17 @@ let user_status
 
 
 
+// call checkInput recursively
 const validatePass = (enterPass) => {
     return checkInput(enterPass)
         .then(result => result)
         .catch(err => {
             console.log(`Sorry: ${err}. Please, try again`)
             return err
-            //validatePass(enterPass)
         })
 }
 
+// check truth password
 const checkInput = (enterPass) => {
     return new Promise((resolve, reject) => {
         enterPass = CryptoJS.SHA256(enterPass).toString()
@@ -172,6 +173,7 @@ function start(){
                         rl.setPrompt(prefix, prefix.length)
                         rl.prompt()
 
+
                         const balance = await account.getUserInfo()
 
                         console.log("Your balance = " + balance.amount)
@@ -214,6 +216,7 @@ function start(){
 }
 
 
+// create file "wallet.json" with keys and password hash
 const prepairing = (password, keys) => {
     return new Promise((resolve, reject) => {
         files.createJsonFile(walletPath, keys, password).then(createdWallet => {
@@ -222,6 +225,7 @@ const prepairing = (password, keys) => {
     }) 
 }
 
+// get params from command in stdin
 const preproccessing = inputString => {
     if(inputString.split('(')[0] === inputString) return null
     inputString = inputString.replace(/\s/g,"")// delete all пробелс
