@@ -157,7 +157,7 @@ function start(){
 
                         console.log(txOk)
 
-                        ws.on('message', msgStred => {
+                        ws.on('message', msgStred => { 
                             var msg
                             console.log('got message:', msgStred)
                             msg = JSON.parse(msgStred)
@@ -207,6 +207,58 @@ function start(){
             rl.prompt()
         
         }).catch(err => console.log(new Error("пошло по пизде")))
+    })
+
+    ws.on('message', async msgStred => {
+                            
+        const msg = JSON.parse(msgStred)
+        console.log(msgStred)
+        if (msg.action != null) {
+          console.log('a new cmd:', msg)
+          switch (msg.action) {
+            case 'increaseBalance':
+            account.increaseBalance(msg.data.amount).then(res => {
+                if(res){
+                    const code = 1
+                    txRes = {
+                        info: 'increasing balance fall'
+                    }
+                }
+                const code = 0
+                txRes = {ts: Math.floor((new Date).getTime() / 1000)}
+                ws.send(JSON.stringify({code: code, data: txRes}))
+            })
+            break
+            case 'decreaseBalance':
+            account.decreaseBalance(msg.data.amount).then(res => {
+                if(res){// res != null(error)
+                    const code = 1
+                    txRes = {
+                        info: 'decreasing balance fall'
+                    }
+                }
+                //res == null
+                const code = 0
+                txRes = {ts: Math.floor((new Date).getTime() / 1000)}
+                ws.send(JSON.stringify({code: code, data: txRes}))
+            })
+            break
+            default:
+              txRes = {
+                info: 'something going wrong'
+              };
+              ws.send(JSON.stringify({code: 1, data: txRes}))
+          }
+        } else {
+          if (msg.code != null) {
+            return console.log('a confirmation:', msg);
+          } else {
+            txRes = {
+              info: 'wrong format'
+            };
+            return ws.send(JSON.stringify({code: 1, data: txRes}))
+          }
+        }
     })
 
     ws.on('close', function close() {
