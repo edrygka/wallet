@@ -58,3 +58,4 @@ typings/
 .env
 
 wallet.json
+wallet.json.enc

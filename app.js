@@ -111,6 +111,10 @@ function start(){
                     }).catch(err => {
                         console.log(err + " stranno")// тут вооще все странно, catch не вызывается в принципе
                     })
+
+                    //const enc = await files.decryptFile("wallet.json.enc", "wallet1.json", command)
+                    //console.log(enc)
+
                     break
 
 
@@ -225,7 +229,7 @@ function start(){
                     }
                 }
                 const code = 0
-                txRes = {ts: Math.floor((new Date).getTime() / 1000)}
+                txRes = {id: msg.data.id, ts: Math.floor((new Date).getTime() / 1000)}
                 ws.send(JSON.stringify({code: code, data: txRes}))
             })
             break
@@ -239,7 +243,7 @@ function start(){
                 }
                 //res == null
                 const code = 0
-                txRes = {ts: Math.floor((new Date).getTime() / 1000)}
+                txRes = {id: msg.data.id, ts: Math.floor((new Date).getTime() / 1000)}
                 ws.send(JSON.stringify({code: code, data: txRes}))
             })
             break
