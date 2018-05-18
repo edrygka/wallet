@@ -4,6 +4,8 @@ const path = require('path')
 const WebSocket = require('ws')
 const crypto = require("libp2p-crypto")
 const CryptoJS = require("crypto-js")
+const events = require('events')
+const changeUserInfo = new events.EventEmitter()
 
 const files = require('./lib/files')
 const account = require('./lib/account')
@@ -12,45 +14,41 @@ const rl = readline.createInterface(process.stdin, process.stdout)
 const prefix = "wallet> "
 const passpref = "password> "
 
-let walletPath
+let walletPath, user_status, userInfo = undefined
 
-const ws = new WebSocket('ws://127.0.0.1:9091')
-// Need to broadcast tx to node
-
-let user_status 
 // "undefined" if account is not created
 // "unlogined" if account exist but user not loged
 // "logined" if user loged and can send coins or get your balance
 
 
-
 // call checkInput recursively
-const validatePass = (enterPass) => {
-    return checkInput(enterPass)
+const validatePass = (walletPath, enterPass) => {
+    return checkInput(walletPath, enterPass)
         .then(result => result)
         .catch(err => {
             console.log(`Sorry: ${err}. Please, try again`)
-            return err
+            throw new Error("Bad input")
         })
 }
 
 // check truth password
-const checkInput = (enterPass) => {
+const checkInput = (walletPath, enterPass) => {
     return new Promise((resolve, reject) => {
         enterPass = CryptoJS.SHA256(enterPass).toString()
-        fs.readFile(walletPath, 'utf8', (err, content) => { 
-            corePassword = JSON.parse(content).password
-            if (enterPass === corePassword) {
-                resolve(true)
-            } else {
-                reject(new Error('Invalid password'))
-            }
-        })
+        files.decryptContent(walletPath, enterPass).then(newContent => {
+            resolve(newContent)
+        }).catch(err => reject(new Error('Invalid password')))
     })
 }
+//36a49d57a4541a917370b1052e454e29b388f5445ed941a841531c1d0b714c30
 
 
-function start(){
+async function start(){
+
+    const config = JSON.parse(fs.readFileSync("config.json", 'utf8'))
+
+    const ws = new WebSocket(`ws://127.0.0.1:${config.wsPort}`)
+    // Need to broadcast tx to node
 
     ws.onerror = (err) => {
         if(err.error.code === "ECONNREFUSED"){
@@ -62,7 +60,7 @@ function start(){
 
     ws.on('open', () => {
         files.getWalletPath().then(pathOfWallet => {
-            walletPath = pathOfWallet
+            walletPath = String(pathOfWallet)
             const walletFile = fs.existsSync(walletPath)
             if(walletFile == true){
                 user_status = "unlogined"
@@ -81,15 +79,20 @@ function start(){
 
                 switch(user_status) {
                     case "undefined":
-                    // creating new key pair
-                    const userInfo = await account.createAccount()
-                    //command it is password
                     if(command !== ""){
-                        const result = await prepairing(command, userInfo)
-                        if(result === true){
+                        // creating new key pair
+                        let newUserInfo = await account.createAccount()
+                        //command it is password
+                        // create file "wallet.json" with encrypted keys
+                        newUserInfo = JSON.stringify(newUserInfo, null, 2)
+                        newUserInfo = JSON.parse(newUserInfo)
+                        newUserInfo.amount = 2000
+                        newUserInfo.passwordHash = CryptoJS.SHA256(command).toString()
+                        const createdWallet = await files.createJsonFile(walletPath, newUserInfo, newUserInfo.passwordHash)
+                        if(createdWallet === true){
                             user_status = "unlogined"
                             console.log("Successfully created new account")
-                        } // throw reject, get more details
+                        }
                         console.log("Please, enter your password")
                     
                     } else {
@@ -98,22 +101,19 @@ function start(){
                     break
                         
                     case "unlogined":
-                    validatePass(command).then(res => {
-                        if(res === true){
-                            rl.setPrompt(prefix, prefix.length)//костыли пиздец...
+                    validatePass(walletPath, command).then(res => {
+                        if(res){
+                            //console.log(res)
+                            userInfo = res
+                            rl.setPrompt(prefix, prefix.length)
                             rl.prompt()
                             user_status = "logined"
                             console.log("Successfully logined")
-                        } else {
-                            rl.setPrompt(passpref, passpref.length)//костыли пиздец...
-                            rl.prompt()
-                        }
+                        } 
                     }).catch(err => {
-                        console.log(err + " stranno")// тут вооще все странно, catch не вызывается в принципе
+                        rl.setPrompt(passpref, passpref.length)
+                        rl.prompt()
                     })
-
-                    //const enc = await files.decryptFile("wallet.json.enc", "wallet1.json", command)
-                    //console.log(enc)
 
                     break
 
@@ -131,12 +131,12 @@ function start(){
 
                         case 'transferCoins':
                     
-                        const sender = await account.getUserInfo()
+                        //const sender = await account.getUserInfo()
 
-                        const _saddress = String(sender.id)
+                        const _saddress = String(userInfo.id)
                         const _raddress = String(params[0])
                         const _amount = Number(params[1])
-                        const _famount = Number(sender.amount)
+                        const _famount = Number(userInfo.amount)
 
                         if(_famount < _amount){
                             rl.setPrompt(prefix, prefix.length)
@@ -159,8 +159,9 @@ function start(){
                         }))
 
 
-                        console.log(txOk)
+                        //console.log(txOk)
 
+                        changeUserInfo.emit("decreaseBalance", _amount)
                         ws.on('message', msgStred => { 
                             var msg
                             console.log('got message:', msgStred)
@@ -178,9 +179,8 @@ function start(){
                         rl.prompt()
 
 
-                        const balance = await account.getUserInfo()
-
-                        console.log("Your balance = " + balance.amount)
+                        //const info = await files.decryptContent(walletPath, userInfo.passwordHash)
+                        console.log("Your balance = " + userInfo.amount/* + " " + info.amount*/)
                         break 
 
                         default:
@@ -221,21 +221,25 @@ function start(){
           console.log('a new cmd:', msg)
           switch (msg.action) {
             case 'increaseBalance':
-            account.increaseBalance(msg.data.amount).then(res => {
-                if(res){
-                    const code = 1
-                    txRes = {
-                        info: 'increasing balance fall'
-                    }
+            if(user_status === "unlogined"){
+                txRes = {
+                    info: 'User is unlogined'
                 }
-                const code = 0
-                txRes = {id: msg.data.id, ts: Math.floor((new Date).getTime() / 1000)}
-                ws.send(JSON.stringify({code: code, data: txRes}))
-            })
+                ws.send(JSON.stringify({code: 1, data: txRes}))
+            }
+            // const code = 1
+            // txRes = {
+            //     info: 'increasing balance fall'
+            // }
+            // changeUserInfo.emit("increaseBalance", Number(msg.data.amount))
+            // const code = 0
+            // txRes = {id: msg.data.id, ts: Math.floor((new Date).getTime() / 1000)}
+            // ws.send(JSON.stringify({code: code, data: txRes}))
             break
+
             case 'decreaseBalance':
             account.decreaseBalance(msg.data.amount).then(res => {
-                if(res){// res != null(error)
+                if(res){// res != null   (error)
                     const code = 1
                     txRes = {
                         info: 'decreasing balance fall'
@@ -272,19 +276,19 @@ function start(){
 }
 
 
-// create file "wallet.json" with keys and password hash
-const prepairing = (password, keys) => {
-    return new Promise((resolve, reject) => {
-        files.createJsonFile(walletPath, keys, password).then(createdWallet => {
-            resolve(true)
-        }).catch(err => reject(err))
-    }) 
-}
+changeUserInfo.on("increaseBalance", async _amount => {
+    userInfo.amount = Number(userInfo.amount) + Number(_amount)
+    await files.createJsonFile(walletPath, userInfo, userInfo.passwordHash)
+}).on("decreaseBalance", async _amount => {
+    userInfo.amount = Number(userInfo.amount) - Number(_amount)
+    await files.createJsonFile(walletPath, userInfo, userInfo.passwordHash)
+})
+
 
 // get params from command in stdin
 const preproccessing = inputString => {
     if(inputString.split('(')[0] === inputString) return null
-    inputString = inputString.replace(/\s/g,"")// delete all пробелс
+    inputString = inputString.replace(/\s/g,"")// delete all spaces
     let str = inputString.split('(')[1]
     str = str.substring(0, str.length - 1)
     let params = [] = str.split(',') 

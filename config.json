@@ -1,4 +1,5 @@
 {
     "walletFileName": "wallet.json",
-    "baseDirectory": "/Users/macbook/axelwallet"
+    "baseDirectory": "/Users/macbook/axelwallet",
+    "wsPort": "9091"
 }
