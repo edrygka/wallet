@@ -108,7 +108,7 @@ async function start(){
                             rl.setPrompt(prefix, prefix.length)
                             rl.prompt()
                             user_status = "logined"
-                            console.log("Successfully logined")
+                            console.log("Successfully logged in")
                         } 
                     }).catch(err => {
                         rl.setPrompt(passpref, passpref.length)
@@ -186,7 +186,7 @@ async function start(){
                         default:
                         rl.setPrompt(prefix, prefix.length)
                         rl.prompt()
-                        console.log("Say what? I might have heard '" + line.trim() + "'\n Enter 'help' to get all info about commands")
+                        console.log("Unknown command... \n Enter 'help' to get all info about commands")
                         break
                     }
                     break
@@ -270,7 +270,7 @@ async function start(){
     })
 
     ws.on('close', function close() {
-        console.log('Cannot connect - network is down, please, get up client and try again')
+        //console.log('Cannot connect - network is down, please, get up client and try again')
         process.exit(0)
     })
 }
